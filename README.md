@@ -7,8 +7,20 @@ Supports **iOS**, **Android**, **Web**, and **macOS**.
 ## Install
 
 ```bash
-git clone https://github.com/verneagent/devcast.git
-ln -s "$(pwd)/devcast/devcast.sh" /usr/local/bin/devcast
+curl -fsSL https://raw.githubusercontent.com/verneagent/devcast/main/install.sh | bash
+```
+
+Or download directly:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/verneagent/devcast/main/devcast.sh -o /usr/local/bin/devcast
+chmod +x /usr/local/bin/devcast
+```
+
+Or via Homebrew:
+
+```bash
+brew install verneagent/tap/devcast
 ```
 
 Requirements:
