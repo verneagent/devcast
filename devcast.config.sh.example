@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+# devcast.config.sh — project-specific configuration for devcast
+# Copy this file to your project root and customize.
+#
+# Required:
+#   IOS_BUNDLE_ID, ANDROID_PACKAGE, ANDROID_MAIN_ACTIVITY
+#   devcast_build_ios, devcast_build_android, devcast_build_web, devcast_build_mac
+#
+# Optional:
+#   WEB_PORT (default 8080)
+#   devcast_run_ios / devcast_run_android / devcast_run_web / devcast_run_mac
+#     (custom run logic; default installs + launches with the bundle/package IDs below)
+
+# --- App identifiers (required) --------------------------------------------
+
+IOS_BUNDLE_ID="com.example.app"
+ANDROID_PACKAGE="com.example.app"
+ANDROID_MAIN_ACTIVITY=".MainActivity"
+
+# --- Optional settings ------------------------------------------------------
+
+WEB_PORT=8080
+
+# --- Build hooks (required) ------------------------------------------------
+# Each hook must export the build artifact path:
+#   iOS / macOS  → APP_PATH  (path to .app bundle)
+#   Android      → APK_PATH  (path to .apk)
+#   Web          → WEB_DIST_DIR  (path to static files directory)
+
+devcast_build_ios() {
+  # Example for an Expo project:
+  #   cd app
+  #   npx expo prebuild --platform ios --no-install
+  #   cd ios && pod install && cd ..
+  #   cd ios
+  #   xcodebuild -workspace MyApp.xcworkspace -scheme MyApp \
+  #     -configuration Release -sdk iphonesimulator \
+  #     -destination 'generic/platform=iOS Simulator' \
+  #     -derivedDataPath /tmp/devcast-ios \
+  #     CODE_SIGNING_ALLOWED=NO ARCHS=arm64
+  #   APP_PATH=$(find /tmp/devcast-ios/Build/Products/Release-iphonesimulator \
+  #     -maxdepth 1 -name '*.app' -type d | head -1)
+  #   cd ../..
+
+  echo "Error: devcast_build_ios not implemented. Edit devcast.config.sh." >&2
+  exit 1
+}
+
+devcast_build_android() {
+  # Example for an Expo project:
+  #   cd app/android
+  #   ./gradlew :app:assembleRelease -PreactNativeArchitectures=arm64-v8a
+  #   APK_PATH="app/build/outputs/apk/release/app-release.apk"
+  #   cd ../..
+
+  echo "Error: devcast_build_android not implemented. Edit devcast.config.sh." >&2
+  exit 1
+}
+
+devcast_build_web() {
+  # Example for an Expo project:
+  #   cd app
+  #   npx expo export --platform web
+  #   WEB_DIST_DIR="dist"
+  #   cd ..
+
+  echo "Error: devcast_build_web not implemented. Edit devcast.config.sh." >&2
+  exit 1
+}
+
+devcast_build_mac() {
+  # Example for a macOS app:
+  #   xcodebuild -workspace MyApp.xcworkspace -scheme MyApp \
+  #     -configuration Release -derivedDataPath /tmp/devcast-mac
+  #   APP_PATH=$(find /tmp/devcast-mac/Build/Products/Release \
+  #     -maxdepth 1 -name '*.app' -type d | head -1)
+
+  echo "Error: devcast_build_mac not implemented. Edit devcast.config.sh." >&2
+  exit 1
+}
+
+# --- Optional: custom run hooks --------------------------------------------
+# Uncomment and customize if the default install+launch doesn't fit your app.
+
+# devcast_run_ios() {
+#   devcast_build_ios
+#   xcrun simctl install "$DEVICE_UDID" "$APP_PATH"
+#   xcrun simctl launch "$DEVICE_UDID" "$IOS_BUNDLE_ID"
+# }
+
+# devcast_run_android() {
+#   devcast_build_android
+#   adb -s "$DEVICE_ID" install -r "$APK_PATH"
+#   adb -s "$DEVICE_ID" shell am start -n "${ANDROID_PACKAGE}/${ANDROID_MAIN_ACTIVITY}"
+# }
+
+# devcast_run_web() {
+#   devcast_build_web
+#   npx serve -l "${1:-8080}" --no-clipboard "$WEB_DIST_DIR"
+# }
+
+# devcast_run_mac() {
+#   devcast_build_mac
+#   open "$APP_PATH"
+# }
