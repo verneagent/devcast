@@ -24,14 +24,124 @@ set -euo pipefail
 
 usage() {
   echo "Usage: $(basename "$0") <ios|android|web|mac> <list|explore|run|install> [arg]"
+  echo "       $(basename "$0") help"
   echo
+  echo "Commands:"
   echo "  list              List installed simulators / AVDs / connected devices"
   echo "  explore           List downloadable runtimes (iOS) or system images (Android)"
   echo "  run [id|index]    Build, install, and launch"
   echo "                    Omit [id] to auto-pick the first booted device"
   echo "                    web: [arg] = port number (default from WEB_PORT or 8080)"
   echo "  install [index|id] Download & install a runtime (iOS) or system image + create AVD (Android)"
+  echo
+  echo "  help              Show full docs — config variables, build hooks, examples"
+  echo
+  echo "No config found? Run: $(basename "$0") help"
   exit 1
+}
+
+help() {
+  local NAME
+  NAME="$(basename "$0")"
+  cat << HELPEOF
+devcast — build & run mobile/desktop apps on simulators, emulators, and devices.
+
+== Quick start ==
+
+  1. Create ./devcast.config.sh:
+     curl -fsSL https://raw.githubusercontent.com/verneagent/devcast/main/devcast.config.sh.example -o devcast.config.sh
+
+  2. Edit it — fill in your app's bundle IDs and build commands.
+
+  3. Run:
+     $NAME ios list
+     $NAME ios run
+
+== Configuration (devcast.config.sh) ==
+
+Required variables:
+
+  IOS_BUNDLE_ID           e.g. com.example.app
+  ANDROID_PACKAGE         e.g. com.example.app
+  ANDROID_MAIN_ACTIVITY   e.g. .MainActivity
+
+Required build hooks (each must export the artifact path):
+
+  devcast_build_ios()     → exports APP_PATH (path to .app)
+  devcast_build_android() → exports APK_PATH (path to .apk)
+  devcast_build_web()     → exports WEB_DIST_DIR (path to static files)
+  devcast_build_mac()     → exports APP_PATH (path to .app bundle)
+
+Optional run hooks (override default install+launch behavior):
+
+  devcast_run_ios()       custom iOS run logic
+  devcast_run_android()   custom Android run logic
+  devcast_run_web()       custom web serve logic
+  devcast_run_mac()       custom macOS run logic
+
+Optional variables:
+
+  WEB_PORT                default 8080
+  DEVCAST_CONFIG          alt config path (default ./devcast.config.sh)
+
+== Build hook examples ==
+
+Expo / React Native:
+
+  devcast_build_ios() {
+    cd app
+    npx expo prebuild --platform ios --no-install
+    cd ios && pod install && cd ..
+    xcodebuild -workspace ios/MyApp.xcworkspace -scheme MyApp \\
+      -configuration Release -sdk iphonesimulator \\
+      -destination 'generic/platform=iOS Simulator' \\
+      -derivedDataPath /tmp/devcast-ios \\
+      CODE_SIGNING_ALLOWED=NO ARCHS=arm64
+    APP_PATH=\$(find /tmp/devcast-ios/Build/Products/Release-iphonesimulator \\
+      -maxdepth 1 -name '*.app' -type d | head -1)
+    export APP_PATH
+  }
+
+  devcast_build_android() {
+    cd app/android
+    ./gradlew :app:assembleRelease -PreactNativeArchitectures=arm64-v8a
+    APK_PATH=app/build/outputs/apk/release/app-release.apk
+    export APK_PATH
+  }
+
+  devcast_build_web() {
+    cd app
+    npx expo export --platform web
+    WEB_DIST_DIR=dist
+    export WEB_DIST_DIR
+  }
+
+Full annotated template:
+  https://github.com/verneagent/devcast/blob/main/devcast.config.sh.example
+
+== Commands ==
+
+  $NAME ios list               List iOS simulators & connected devices
+  $NAME ios explore            List downloadable iOS runtimes
+  $NAME ios install [n|id]     Download & install a runtime
+  $NAME ios run [n|id]         Build, install, launch on simulator/device
+
+  $NAME android list           List AVDs & connected ADB devices
+  $NAME android explore        List downloadable system images
+  $NAME android install [n|id] Download system image + create AVD
+  $NAME android run [n|id]     Build, install, launch on emulator/device
+
+  $NAME web run [port]         Build & serve on localhost
+  $NAME mac run                Build & launch .app
+
+== Requirements ==
+
+  iOS/macOS: Xcode with Command Line Tools
+  Android:   ANDROID_HOME set, cmdline-tools installed
+  Web:       npx serve or python3 for HTTP server
+
+HELPEOF
+  exit 0
 }
 
 PLATFORM="${1:-}"
@@ -40,7 +150,9 @@ TARGET="${3:-}"
 
 normalize() { echo "$1" | tr '[:upper:]' '[:lower:]' | tr -d ' '; }
 
-[[ -n "$PLATFORM" && -n "$CMD" ]] || usage
+[[ -n "$PLATFORM" ]] || usage
+[[ "$PLATFORM" == "help" ]] && help
+[[ -n "$CMD" ]] || usage
 [[ "$PLATFORM" == "ios" || "$PLATFORM" == "android" || "$PLATFORM" == "web" || "$PLATFORM" == "mac" ]] || usage
 [[ "$CMD" == "list" || "$CMD" == "explore" || "$CMD" == "run" || "$CMD" == "install" ]] || usage
 [[ "$CMD" == "explore" && ("$PLATFORM" == "web" || "$PLATFORM" == "mac") ]] && echo "Error: 'explore' is ios/android only" && exit 1
@@ -50,6 +162,16 @@ normalize() { echo "$1" | tr '[:upper:]' '[:lower:]' | tr -d ' '; }
 DEVCAST_CONFIG="${DEVCAST_CONFIG:-./devcast.config.sh}"
 if [[ -f "$DEVCAST_CONFIG" ]]; then
   source "$DEVCAST_CONFIG"
+elif [[ "$CMD" == "run" ]]; then
+  echo "Error: no config file found at $DEVCAST_CONFIG" >&2
+  echo "" >&2
+  echo "Quick start:" >&2
+  echo "  curl -fsSL https://raw.githubusercontent.com/verneagent/devcast/main/devcast.config.sh.example -o devcast.config.sh" >&2
+  echo "  # Edit devcast.config.sh with your app's bundle IDs and build commands" >&2
+  echo "  # Then re-run: $(basename "$0") $PLATFORM $CMD $TARGET" >&2
+  echo "" >&2
+  echo "Full docs: $(basename "$0") help" >&2
+  exit 1
 fi
 
 # Validate required config for 'run' command
