@@ -1,15 +1,28 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Install devcast to /usr/local/bin
-# Usage: curl -fsSL https://raw.githubusercontent.com/verneagent/devcast/main/install.sh | bash
+# Install devcast
+# Usage:
+#   curl -fsSL https://raw.githubusercontent.com/verneagent/devcast/main/install.sh | bash
+#   curl -fsSL ... | bash -s ~/.local/bin/devcast
 
 DEST="${1:-/usr/local/bin/devcast}"
 URL="https://raw.githubusercontent.com/verneagent/devcast/main/devcast.sh"
 
-echo "Downloading devcast..."
-curl -fsSL "$URL" -o "$DEST"
-chmod +x "$DEST"
+echo "Installing devcast to $DEST..."
 
-echo "devcast installed to $DEST"
-echo "Run: devcast ios list"
+TMPFILE="$(mktemp -t devcast.XXXXXX)"
+trap 'rm -f "$TMPFILE"' EXIT
+
+curl -fsSL "$URL" -o "$TMPFILE"
+chmod +x "$TMPFILE"
+
+DEST_DIR="$(dirname "$DEST")"
+if [[ -w "$DEST_DIR" ]]; then
+  mv "$TMPFILE" "$DEST"
+else
+  echo "(sudo needed for $DEST_DIR)"
+  sudo mv "$TMPFILE" "$DEST"
+fi
+
+echo "Done. Run: devcast ios list"
